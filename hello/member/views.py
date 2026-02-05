@@ -40,7 +40,7 @@ def customer_login(request):
                 return JsonResponse({'status': 'error', 'message': "Username not found"})
             messages.error(request, "Username not found")
 
-    return render(request, 'member/login.html')
+    return render(request, 'html_member/login.html')
 
 
 
@@ -79,7 +79,7 @@ def dashboard(request):
         'total_all': members.count()  + member_details.count(),
     }
 
-    return render(request, 'member/dashboard.html', context)
+    return render(request, 'html_member/dashboard.html', context)
 
 
 
@@ -132,18 +132,18 @@ def member_detail_add(request):
         # GET request
         form = MemberDetailForm()
 
-    return render(request, 'member/member_detail_add.html', {
+    return render(request, 'html_member/member_detail_add.html', {
         'form': form,
         'member': member_instance
     })
 
 
 def profile(request):
-    return render(request, 'member/profile.html')
+    return render(request, 'html_member/profile.html')
 
 
 def logout_view(request):
     request.session.flush()
-    return redirect('/member/login/')
+    return redirect('html_member/login/')
 
    

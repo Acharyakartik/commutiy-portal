@@ -63,7 +63,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'home_temp'],  # global templates folder
+        'DIRS': [BASE_DIR / 'myapplication'],  # global templates folder
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -118,13 +118,13 @@ USE_TZ = True
 # STATIC FILES  ✅ FIXED
 # -------------------------------
 
-STATIC_URL = '/member_temp/'
+STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / 'member_temp',   # your project static folder
+    BASE_DIR / 'static',   # your project static folder
 ]
 
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # for production collectstatic
+STATIC_ROOT = BASE_DIR / '/static/assets_djngo_admin/'  # for production collectstatic
 
 
 # -------------------------------
@@ -142,3 +142,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/'
+

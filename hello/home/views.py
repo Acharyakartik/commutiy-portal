@@ -11,21 +11,20 @@ from django.shortcuts import redirect
 # NO LOGIN REQUIRED
 # =========================
 # api_view(['GET'])
-def react_index(request):
-    return render(request, "index.html")
+def index(request):
+    return render(request, "html_home/index.html")
 
 
-def member(request):
-    return render(request, "customer/login.html")
+
     return render(request, "index.html")
 
 
 def home(request):
-    return render(request, "home.html")
+    return render(request, "html_home/home.html")
 
 
 def aboutus(request):
-    return render(request, "about.html")
+    return render(request, "html_home/about.html")
 
 
 def contact(request):
@@ -37,7 +36,7 @@ def contact(request):
             desc=request.POST.get("desc"),
             date=datetime.today()
         )
-    return render(request, "contact.html")
+    return render(request, "html_home/contact.html")
 
 
 
