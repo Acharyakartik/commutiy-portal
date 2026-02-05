@@ -21,6 +21,8 @@ ALLOWED_HOSTS = ['*']
 # USE_ADMINLTE = True
 
 INSTALLED_APPS = [
+    'rest_framework',
+    "corsheaders",
     'adminlte4',
     'adminlte4_theme',
     'django.contrib.admin',
@@ -44,7 +46,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'member.middleware.MemberAuthMiddleware',
-
+    "corsheaders.middleware.CorsMiddleware", #handle the core react api
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -53,7 +55,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'hello.urls'
 
-
+CORS_ALLOW_ALL_ORIGINS = True
 # -------------------------------
 # TEMPLATES
 # -------------------------------
@@ -61,7 +63,7 @@ ROOT_URLCONF = 'hello.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'website'],  # global templates folder
+        'DIRS': [BASE_DIR / 'home_temp'],  # global templates folder
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -116,10 +118,10 @@ USE_TZ = True
 # STATIC FILES  ✅ FIXED
 # -------------------------------
 
-STATIC_URL = '/static/'
+STATIC_URL = '/member_temp/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',   # your project static folder
+    BASE_DIR / 'member_temp',   # your project static folder
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # for production collectstatic

@@ -5,12 +5,14 @@ from django.http import HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
 from datetime import datetime
 from .models import Contact
+from home.views import react_index
+
 app_name = "home"
 urlpatterns = [
     # ======================
     # CUSTOMER (NO LOGIN)
     # ======================
-    path('', views.index, name='index'),
+     path('', react_index, name='index'),
     path('home/', views.home, name='home'),
     path('aboutus/', views.aboutus, name='about'),
     

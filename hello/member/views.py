@@ -74,15 +74,15 @@ def dashboard(request):
     context = {
         'members': members,
         'member_details': member_details,
-        'total_members': 1,
+        'total_members': members.count(),
         'total_details': member_details.count(),
+        'total_all': members.count()  + member_details.count(),
     }
 
     return render(request, 'member/dashboard.html', context)
 
 
 
-@login_required
 def member_detail_add(request):
     # Get logged-in member using session
     member_no = request.session.get('member_no')

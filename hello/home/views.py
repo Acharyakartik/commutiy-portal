@@ -10,9 +10,10 @@ from django.shortcuts import redirect
 # CUSTOMER VIEWS (PORT 8000)
 # NO LOGIN REQUIRED
 # =========================
-
-def index(request):
+# api_view(['GET'])
+def react_index(request):
     return render(request, "index.html")
+
 
 def member(request):
     return render(request, "customer/login.html")

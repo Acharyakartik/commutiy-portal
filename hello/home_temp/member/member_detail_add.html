@@ -1,0 +1,144 @@
+{% extends "member/base.html" %}
+{% load static %}
+
+{% block title %}Add Member Detail{% endblock %}
+{% block nav_member_detail %}active{% endblock %}
+
+{% block page_title %}
+Add Member Detail
+{% endblock %}
+
+{% block page_subtitle %}
+Member: {{ member.first_name }} {{ member.surname }}
+{% endblock %}
+
+{% block content %}
+{% block nav_detail_menu %}menu-open{% endblock %}
+{% block nav_add_detail %}active{% endblock %}
+
+<div class="container-fluid">
+
+    <!-- MESSAGE -->
+    <div id="message"></div>
+
+    <div class="card card-outline card-success shadow-sm">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-id-card"></i>
+                Member Information
+            </h3>
+        </div>
+
+        <form id="memberDetailForm" method="post">
+            {% csrf_token %}
+
+            <div class="card-body">
+
+                <!-- READ ONLY MEMBER INFO -->
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Member No</label>
+                            <input type="text"
+                                   class="form-control"
+                                   value="{{ member.member_no }}"
+                                   readonly>
+                        </div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text"
+                                   class="form-control"
+                                   value="{{ member.first_name }} {{ member.middle_name }} {{ member.surname }}"
+                                   readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- FORM FIELDS -->
+                <div class="row">
+                    {% for field in form %}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="text-danger small">
+                                        {{ field.errors|striptags }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+
+            <div class="card-footer text-right">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Save
+                </button>
+
+                <a href="{% url 'member:dashboard' %}"
+                   class="btn btn-secondary ml-2">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+$(function () {
+
+    $('#memberDetailForm').on('submit', function (e) {
+        e.preventDefault();
+
+        $.ajax({
+            url: "{% url 'member:member_detail_add' %}",
+            type: "POST",
+            data: $(this).serialize(),
+
+            success: function (response) {
+
+                if (response.status === 'success') {
+                    $('#message').html(
+                        '<div class="alert alert-success alert-dismissible fade show">' +
+                        '<i class="fas fa-check-circle"></i> ' + response.message +
+                        '</div>'
+                    );
+
+                    $('#memberDetailForm')[0].reset();
+                }
+
+                if (response.status === 'error') {
+                    let errorHtml = '<div class="alert alert-danger"><ul>';
+                    $.each(response.errors, function (field, errors) {
+                        $.each(errors, function (i, error) {
+                            errorHtml += '<li>' + field + ': ' + error + '</li>';
+                        });
+                    });
+                    errorHtml += '</ul></div>';
+                    $('#message').html(errorHtml);
+                }
+            },
+
+            error: function () {
+                $('#message').html(
+                    '<div class="alert alert-danger">' +
+                    'Something went wrong. Please try again.' +
+                    '</div>'
+                );
+            }
+        });
+    });
+
+});
+</script>
+{% endblock %}
