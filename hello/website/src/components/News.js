@@ -8,6 +8,10 @@ const images = [
   "/images/news5.jpg"
 ];
 
+fetch("http://127.0.0.1:8000/api/test/")
+  .then(res => res.json())
+  .then(data => console.log(data));
+
 function News() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const intervalRef = useRef(null);
