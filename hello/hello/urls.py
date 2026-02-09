@@ -11,17 +11,7 @@ urlpatterns = [
     # Public + Client app URLs
     path('', include('home.urls')),
     path('member/', include('member.urls')),  
-    # Client Authentication
-    path(
-    'client/login/',
-    auth_views.LoginView.as_view(template_name='auth/login.html'),
-    name='login'
-),
-path(
-    'client/logout/',
-    auth_views.LogoutView.as_view(next_page='/client/login/'),
-    name='logout'
-),
+   
 
 ]
 
