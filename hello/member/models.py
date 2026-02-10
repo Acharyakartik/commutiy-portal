@@ -94,14 +94,14 @@ class MemberDetail(models.Model):
     
     # Audit fields
     created_by = models.ForeignKey(
-        User1,
+        Member,
         on_delete=models.SET_NULL,
         related_name='memberdetail_created',
         blank=True,
         null=True
     )
     updated_by = models.ForeignKey(
-        User1,
+        Member,
         on_delete=models.SET_NULL,
         related_name='memberdetail_updated',
         blank=True,

@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from datetime import datetime
 from .models import Contact
 from django.shortcuts import redirect
+from django.http import HttpResponseRedirect
+from django.conf import settings
 
 
 # =========================
@@ -11,12 +13,13 @@ from django.shortcuts import redirect
 # NO LOGIN REQUIRED
 # =========================
 # api_view(['GET'])
-def index(api_view, request):
-    return render(request, "index.html")
+def index(request):
+#    return HttpResponseRedirect(settings.FRONTEND_BASE_URL)
+    return render(request, "html_home/index.html")
 
 
 
-    return render(request, "index.html")
+
 
 
 def home(request):

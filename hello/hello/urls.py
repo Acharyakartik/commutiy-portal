@@ -12,8 +12,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # Public + Client app URLs
-    path('',TemplateView.as_view(template_name='index.html')),
+    path('', include('home.urls')),
     path('member/', include('member.urls')),  
+    path('news/', include('news.urls')),  
    
 
 ]

@@ -10,4 +10,5 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
     path('member-detail/add/', views.member_detail_add, name='member_detail_add'),
     path('profile/', views.profile, name='profile'),
+    path('memberjson/', views.memberjson, name='memberjson'),
 ]

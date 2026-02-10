@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import get_user_model
-
+from django.contrib.auth.models import User
 
 # Create your models here.
 class Contact(models.Model):
@@ -11,99 +11,4 @@ class Contact(models.Model):
     desc=models.TextField()
     date=models.DateField()
 
-# User = get_user_model() 
-# class Member(models.Model):
-#     member_no = models.AutoField(primary_key=True)  # Auto-increment primary key
-#     first_name = models.CharField(max_length=50)
-#     middle_name = models.CharField(max_length=50, blank=True, null=True)
-#     surname = models.CharField(max_length=50)
-#     phone_no = models.CharField(max_length=20, unique=True)
-#     date_of_birth = models.DateField()
-#     age = models.PositiveIntegerField()
-    
-#     GENDER_CHOICES = [
-#         ('M', 'Male'),
-#         ('F', 'Female'),
-#         ('O', 'Other'),
-#     ]
-#     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    
-#     occupation = models.CharField(max_length=100, blank=True, null=True)
-#     username = models.CharField(max_length=50, unique=True)
-#     password = models.CharField(max_length=128)  # store hashed password
-#     STATUS_CHOICES = [
-#         ('Active', 'Active'),
-#         ('Inactive', 'Inactive'),
-#     ]
-#     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
-      
-#     created_by = models.ForeignKey(
-#         User,
-#         on_delete=models.SET_NULL,
-#         related_name='member_created',
-#         blank=True,
-#         null=True
-#     )
-#     updated_by = models.ForeignKey(
-#         User,
-#         on_delete=models.SET_NULL,
-#         related_name='member_updated',
-#         blank=True,
-#         null=True
-#     )
-#     created_at = models.DateTimeField(auto_now_add=True)  # timestamp of creation
-#     updated_at = models.DateTimeField(auto_now=True)
-    
-    
-#     def __str__(self):
-#         return f"{self.member_no} - {self.first_name} {self.surname}"
-  
 
-# User1 = get_user_model()  # For created_by / updated_by references
-
-# class MemberDetail(models.Model):
-#     member_id = models.AutoField(primary_key=True)  # Auto-increment primary key
-#     member_no = models.ForeignKey(
-#         'member.Member',  # Reference to your Member table
-#         on_delete=models.CASCADE,
-#         related_name='details'
-#     )
-    
-#     first_name = models.CharField(max_length=50)
-#     middle_name = models.CharField(max_length=50, blank=True, null=True)
-#     surname = models.CharField(max_length=50)
-#     date_of_birth = models.DateField()
-#     age = models.PositiveIntegerField()
-    
-#     GENDER_CHOICES = [
-#         ('M', 'Male'),
-#         ('F', 'Female'),
-#         ('O', 'Other'),
-#     ]
-#     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    
-#     occupation = models.CharField(max_length=100, blank=True, null=True)
-    
-#     # Audit fields
-#     created_by = models.ForeignKey(
-#         User1,
-#         on_delete=models.SET_NULL,
-#         related_name='memberdetail_created',
-#         blank=True,
-#         null=True
-#     )
-#     updated_by = models.ForeignKey(
-#         User1,
-#         on_delete=models.SET_NULL,
-#         related_name='memberdetail_updated',
-#         blank=True,
-#         null=True
-#     )
-#     created_at = models.DateTimeField(auto_now_add=True)  # timestamp of creation
-#     updated_at = models.DateTimeField(auto_now=True)      # timestamp of last update
-
-
-#     def __str__(self):
-#         return f"Detail of {self.member_no}"
-
- 

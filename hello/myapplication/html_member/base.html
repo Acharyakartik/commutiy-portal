@@ -134,6 +134,40 @@
                         </li>
                     </ul>
                 </li>
+                <!-- NEWS MANAGEMENT -->
+                <li class="nav-item has-treeview {% block nav_news_menu %}{% endblock %}">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-newspaper"></i>
+                        <p>
+                            News
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+
+                        <!-- Add News -->
+                        <li class="nav-item">
+                            <a href="{% url 'news:news_add' %}"
+                            class="nav-link {% block nav_news_add %}{% endblock %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Add News</p>
+                            </a>
+                        </li>
+
+                        <!-- News List -->
+                        <li class="nav-item">
+                            <a href="{% url 'news:news_list' %}"
+                            class="nav-link {% block nav_news_list %}{% endblock %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>My News</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+
+
 
             </ul>
         </nav>

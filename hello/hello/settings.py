@@ -19,6 +19,7 @@ ALLOWED_HOSTS = ['*']
 # -------------------------------
 
 # USE_ADMINLTE = True
+FRONTEND_BASE_URL = "http://192.168.1.5:3000" #this is the fornatend to use the api
 
 INSTALLED_APPS = [
     'rest_framework',
@@ -32,6 +33,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'member.apps.MemberConfig',
+    'news',
     'home.apps.HomeConfig',
 ]
 
@@ -123,9 +125,10 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',   # your project static folder
 ]
+STATIC_ROOT = BASE_DIR / '/static/assets_djngo_admin'  # for production collectstatic
 
-STATIC_ROOT = BASE_DIR / '/static/assets_djngo_admin/'  # for production collectstatic
-
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # -------------------------------
 # DEFAULT PK

@@ -1,0 +1,122 @@
+{% extends "html_member/base.html" %}
+
+{% block nav_news_menu %}menu-open{% endblock %}
+{% block nav_news_list %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ================== PUBLISHED NEWS ================== -->
+    <div class="card card-outline card-primary mb-4">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-newspaper"></i>
+                Published News
+            </h3>
+        </div>
+
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                        <th width="120">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for news in published_news %}
+                        <tr>
+                            <td>{{ news.title }}</td>
+                            <td>{{ news.category }}</td>
+                            <td>
+                                <span class="badge badge-success">Published</span>
+                            </td>
+                            <td>{{ news.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <a href="{% url 'news:news_edit' news.id %}"
+                                   class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+
+                                <a href="{% url 'news:news_delete' news.id %}"
+                                   class="btn btn-sm btn-danger"
+                                   onclick="return confirm('Are you sure?');">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No published news found.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ================== UNPUBLISHED NEWS ================== -->
+    <div class="card card-outline card-secondary">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-newspaper"></i>
+                Draft / Archived News
+            </h3>
+        </div>
+
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                        <th width="120">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for news in unpublished_news %}
+                        <tr>
+                            <td>{{ news.title }}</td>
+                            <td>{{ news.category }}</td>
+                            <td>
+                                {% if news.status == "draft" %}
+                                    <span class="badge badge-warning">Draft</span>
+                                {% elif news.status == "archived" %}
+                                    <span class="badge badge-dark">Archived</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ news.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <a href="{% url 'news:news_edit' news.id %}"
+                                   class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+
+                                <a href="{% url 'news:news_delete' news.id %}"
+                                   class="btn btn-sm btn-danger"
+                                   onclick="return confirm('Are you sure?');">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No draft or archived news found.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

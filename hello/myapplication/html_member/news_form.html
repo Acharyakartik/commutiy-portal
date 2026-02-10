@@ -1,0 +1,157 @@
+{% extends "html_member/base.html" %}
+
+{% block nav_news_menu %}menu-open{% endblock %}
+{% block nav_news_add %}{% if not news %}active{% endif %}{% endblock %}
+{% block nav_news_list %}{% if news %}active{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <div class="card card-outline card-success shadow-sm">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-newspaper"></i>
+                {% if news %}Edit News{% else %}Add News{% endif %}
+            </h3>
+        </div>
+
+        <!-- ✅ enctype ADDED -->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="card-body">
+
+                <!-- AUDIT INFO -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Created By</label>
+                            <input type="text"
+                                   class="form-control"
+                                   value="{% if news %}{{ news.created_by.get_full_name|default:news.created_by.username }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}"
+                                   readonly>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Created At</label>
+                            <input type="text"
+                                   class="form-control"
+                                   value="{% if news %}{{ news.created_at|date:'Y-m-d H:i' }}{% else %}{% now 'Y-m-d H:i' %}{% endif %}"
+                                   readonly>
+                        </div>
+                    </div>
+                </div>
+
+                {% if news %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <label>Updated By</label>
+                        <input type="text"
+                               class="form-control"
+                               value="{{ news.updated_by.get_full_name|default:news.updated_by.username|default:'—' }}"
+                               readonly>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label>Updated At</label>
+                        <input type="text"
+                               class="form-control"
+                               value="{{ news.updated_at|date:'Y-m-d H:i' }}"
+                               readonly>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- FORM FIELDS -->
+                <div class="row">
+
+                    <div class="col-md-6">
+                        <label>Title</label>
+                        <input type="text" name="title" class="form-control"
+                               value="{{ news.title|default:'' }}" required>
+                    </div>
+
+                    <!-- <div class="col-md-6">
+                        <label>Category</label>
+                        <select name="category" class="form-control" required>
+                            <option value="">Select Category</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}"
+                                    {% if news and news.category_id == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div> -->
+
+                    <div class="col-md-12 mt-2">
+                        <label>Content</label>
+                        <textarea name="content" class="form-control" rows="5" required>{{ news.content|default:'' }}</textarea>
+                    </div>
+
+                    <!-- ✅ IMAGE FIELD ADDED -->
+                    <div class="col-md-6 mt-2">
+                        <label>Image</label>
+                        <input type="file" name="image" class="form-control">
+
+                        {% if news and news.image %}
+                            <small class="text-muted d-block mt-1">Current image:</small>
+                            <img src="{{ news.image.url }}" class="img-thumbnail mt-1" style="max-height:120px;">
+                        {% endif %}
+                    </div>
+
+                    <!-- ✅ STATUS HIDDEN FIELD -->
+                    <input type="hidden" name="status" id="status"
+                           value="{% if news %}{{ news.status }}{% else %}draft{% endif %}">
+
+                    <div class="col-md-6 mt-4">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox"
+                                   class="custom-control-input"
+                                   id="is_published"
+                                   name="is_published"
+                                   {% if news and news.status == "published" %}checked{% endif %}>
+                            <label class="custom-control-label" for="is_published">
+                                Publish
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card-footer text-right">
+                <button class="btn btn-success">
+                    <i class="fas fa-save"></i>
+                    {% if news %}Update{% else %}Save{% endif %}
+                </button>
+
+                <a href="{% url 'news:news_list' %}" class="btn btn-secondary ml-2">
+                    Cancel
+                </a>
+            </div>
+
+        </form>
+    </div>
+
+</div>
+
+<!-- ✅ STATUS SYNC SCRIPT -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const checkbox = document.getElementById("is_published");
+        const statusField = document.getElementById("status");
+
+        function syncStatus() {
+            statusField.value = checkbox.checked ? "published" : "draft";
+        }
+
+        checkbox.addEventListener("change", syncStatus);
+        syncStatus();
+    });
+</script>
+
+{% endblock %}
