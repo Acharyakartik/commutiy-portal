@@ -7,9 +7,29 @@ from member.models import Member,MemberDetail
 class MemberAdmin(admin.ModelAdmin):
     def has_view_permission(self, request, obj=None):
         return True
-    search_fields = ['member_no', 'first_name', 'surname']
-    list_display = ('member_no', 'first_name', 'surname','username','password', 'phone_no', 'status', 'created_at', 'updated_at')
+    search_fields = ['member_no', 'first_name', 'middle_name', 'surname', 'email_id', 'education']
+    list_display = (
+        'member_no',
+        'first_name',
+        'middle_name',
+        'surname',
+        'username',
+        'phone_no',
+        'email_id',
+        'marital_status',
+        'education',
+        'status',
+        'created_at',
+        'updated_at',
+    )
     list_filter = ('status', 'gender')
+    list_per_page = 10
+    list_max_show_all = 200
+
+    class Media:
+        css = {
+            "all": ("admin_custom/news_changelist.css",)
+        }
     
 # MemberDetail admin
 @admin.register(MemberDetail)
@@ -23,6 +43,9 @@ class MemberDetailAdmin(admin.ModelAdmin):
         'age',
         'gender',
         'occupation',
+        'email_id',
+        'marital_status',
+        'education',
         'created_by',
         'created_at',
         'updated_by',
@@ -41,6 +64,8 @@ class MemberDetailAdmin(admin.ModelAdmin):
     search_fields = (
         'first_name',
         'surname',
+        'email_id',
+        'education',
         'member_no__member_no',        # search by Member number
         'member_no__first_name',       # search by Member first name
         'member_no__surname',          # search by Member surname
@@ -49,3 +74,10 @@ class MemberDetailAdmin(admin.ModelAdmin):
     # Enable autocomplete for member_no
     # autocomplete_fields = ['member_no']
     raw_id_fields = ['member_no']
+    list_per_page = 10
+    list_max_show_all = 200
+
+    class Media:
+        css = {
+            "all": ("admin_custom/news_changelist.css",)
+        }

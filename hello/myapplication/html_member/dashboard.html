@@ -47,7 +47,7 @@ Welcome back, {{ member.first_name|default:"Member" }}
     <!-- ===================== MEMBER TABLE ===================== -->
     <!-- ========================================================= -->
 
-    <div class="card card-outline card-primary shadow-sm mb-4">
+    <div class="card card-outline card-primary mb-4">
 
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title">
@@ -55,16 +55,17 @@ Welcome back, {{ member.first_name|default:"Member" }}
                 Select member to change
             </h3>
 
-            <a href="#" class="btn btn-sm btn-primary">
-                <i class="fas fa-user-plus"></i> Add member
+            <a href="{% url 'member:member_edit' %}" class="btn btn-sm btn-primary">
+                <i class="fas fa-user-edit"></i> Edit Member
             </a>
         </div>
 
         <div class="card-body table-responsive p-0">
             <table id="memberTable"
-                   class="table table-bordered table-hover table-striped text-nowrap">
+                   class="table table-bordered table-striped table-hover text-nowrap m-0 js-data-table"
+                   data-page-length="10">
 
-                <thead class="thead-light">
+                <thead>
                     <tr>
                         <th>ID</th>
                         <th>Member no</th>
@@ -73,6 +74,7 @@ Welcome back, {{ member.first_name|default:"Member" }}
                         <th>Phone</th>
                         <th>Status</th>
                         <th>Total details</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
 
@@ -93,15 +95,16 @@ Welcome back, {{ member.first_name|default:"Member" }}
                             {% endif %}
                         </td>
 
+                        <td><span class="badge badge-info">{{ m.detail_count }}</span></td>
                         <td>
-                            <span class="badge badge-info">
-                                {{ m.detail_count }}
-                            </span>
+                            <a href="{% url 'member:member_edit' %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
                         </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             No members found
                         </td>
                     </tr>
@@ -116,7 +119,7 @@ Welcome back, {{ member.first_name|default:"Member" }}
     <!-- ================= MEMBER DETAIL TABLE ================== -->
     <!-- ========================================================= -->
 
-    <div class="card card-outline card-success shadow-sm">
+    <div class="card card-outline card-secondary">
 
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title">
@@ -131,9 +134,12 @@ Welcome back, {{ member.first_name|default:"Member" }}
 
         <div class="card-body table-responsive p-0">
             <table id="detailTable"
-                   class="table table-bordered table-hover table-striped text-nowrap">
+                   class="table table-bordered table-striped table-hover text-nowrap m-0 js-data-table"
+                   data-page-length="10"
+                   data-order-col="9"
+                   data-order-dir="desc">
 
-                <thead class="thead-light">
+                <thead>
                     <tr>
                         <th>ID</th>
                         <th>Member no</th>
@@ -147,6 +153,7 @@ Welcome back, {{ member.first_name|default:"Member" }}
                         <th>Created at</th>
                         <th>Updated by</th>
                         <th>Updated at</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
 
@@ -165,10 +172,15 @@ Welcome back, {{ member.first_name|default:"Member" }}
                         <td>{{ d.created_at|date:"M d, Y, h:i a" }}</td>
                         <td>{{ d.updated_by.username|default:"-" }}</td>
                         <td>{{ d.updated_at|date:"M d, Y, h:i a" }}</td>
+                        <td>
+                            <a href="{% url 'member:member_detail_edit' d.member_id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="12" class="text-center text-muted py-4">
+                        <td colspan="13" class="text-center text-muted py-4">
                             No member details found
                         </td>
                     </tr>
@@ -180,28 +192,4 @@ Welcome back, {{ member.first_name|default:"Member" }}
     </div>
 
 </div>
-{% endblock %}
-{% block extra_js %}
-<script>
-$(function () {
-
-    $('#memberTable').DataTable({
-        responsive: true,
-        searching: true,
-        paging: true,
-        ordering: true,
-        pageLength: 10
-    });
-
-    $('#detailTable').DataTable({
-        responsive: true,
-        searching: true,
-        paging: true,
-        ordering: true,
-        pageLength: 10,
-        order: [[9, 'desc']]
-    });
-
-});
-</script>
 {% endblock %}

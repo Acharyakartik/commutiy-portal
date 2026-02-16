@@ -29,7 +29,7 @@ Member: {{ member.first_name }} {{ member.surname }}
             </h3>
         </div>
 
-        <form id="memberDetailForm" method="post">
+        <form id="memberDetailForm" method="post" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="card-body">
@@ -103,7 +103,9 @@ $(function () {
         $.ajax({
             url: "{% url 'member:member_detail_add' %}",
             type: "POST",
-            data: $(this).serialize(),
+            data: new FormData(this),
+            processData: false,
+            contentType: false,
 
             success: function (response) {
 

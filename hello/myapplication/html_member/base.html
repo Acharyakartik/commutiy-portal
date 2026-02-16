@@ -58,6 +58,20 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
+        {% if sidebar_member %}
+        <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+            <div class="image">
+                <img src="{% if sidebar_profile_image %}{{ sidebar_profile_image }}{% else %}{% static 'assets_djngo_admin/admin-lte/dist/img/user2-160x160.jpg' %}{% endif %}"
+                     class="img-circle elevation-2"
+                     alt="User Image">
+            </div>
+            <div class="info">
+                <a href="{% url 'member:profile' %}" class="d-block">{{ sidebar_member.first_name }} {{ sidebar_member.surname }}</a>
+                <small class="text-muted">#{{ sidebar_member.member_no }} | {{ sidebar_member.username }}</small>
+            </div>
+        </div>
+        {% endif %}
+
         <nav class="mt-3">
             <ul class="nav nav-pills nav-sidebar flex-column"
                 data-widget="treeview"
@@ -74,7 +88,7 @@
                 </li>
                 <!-- PROFILE -->
                 <li class="nav-item has-treeview {% block nav_profile_menu %}{% endblock %}">
-                    <a href="{% url 'member:profile' %}" class="nav-link">
+                    <a href="#" class="nav-link">
                         <i class="nav-icon fas fa-user-circle"></i>
                         <p>
                             Profile
@@ -84,10 +98,10 @@
         
                 <ul class="nav nav-treeview">
                     <li class="nav-item">
-                        <a href="#"
+                        <a href="{% url 'member:profile' %}"
                         class="nav-link {% block nav_edit_profile %}{% endblock %}">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Edit Profile</p>
+                            <p>View Profile</p>
                         </a>
                     </li>
                 </ul>
@@ -105,7 +119,7 @@
 
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="#"
+                            <a href="{% url 'member:member_edit' %}"
                                class="nav-link {% block nav_edit_member %}{% endblock %}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Edit Member</p>
@@ -130,6 +144,34 @@
                                class="nav-link {% block nav_add_detail %}{% endblock %}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Add Member Detail</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- MARKETPLACE MANAGEMENT -->
+                <li class="nav-item has-treeview {% block nav_marketplace_menu %}{% endblock %}">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-store"></i>
+                        <p>
+                            Marketplace
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'marketplace:member_marketplace_add' %}"
+                               class="nav-link {% block nav_marketplace_add %}{% endblock %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Add Listing</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'marketplace:member_marketplace_list' %}"
+                               class="nav-link {% block nav_marketplace_list %}{% endblock %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>My Listings</p>
                             </a>
                         </li>
                     </ul>
@@ -204,5 +246,33 @@
 <script src="{% static 'assets_members/adminlte/dist/js/adminlte.min.js' %}"></script>
 
 {% block extra_js %}{% endblock %}
+<script>
+$(function () {
+    $('table.js-data-table').each(function () {
+        const $table = $(this);
+        if ($.fn.DataTable.isDataTable(this)) {
+            return;
+        }
+
+        const orderCol = parseInt($table.data('order-col'), 10);
+        const orderDir = $table.data('order-dir') || 'asc';
+        const pageLength = parseInt($table.data('page-length'), 10) || 10;
+
+        const options = {
+            responsive: true,
+            searching: true,
+            paging: true,
+            ordering: true,
+            pageLength: pageLength
+        };
+
+        if (!Number.isNaN(orderCol)) {
+            options.order = [[orderCol, orderDir]];
+        }
+
+        $table.DataTable(options);
+    });
+});
+</script>
 </body>
 </html>

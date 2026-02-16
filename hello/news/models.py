@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.text import slugify
+from django.utils import timezone
 from django.conf import settings
 from member.models import Member  # ✅ Using your custom Member model
 # from .models import Categorymodel
@@ -26,8 +27,9 @@ class Category(models.Model):
 class News(models.Model):
     STATUS_CHOICES = (
         ("draft", "Draft"),
+        ("inreview", "In Review"),
         ("published", "Published"),
-        ("archived", "Archived"),
+        ("rejected", "Rejected"),
     )
 
     title = models.CharField(max_length=255)
@@ -76,6 +78,9 @@ class News(models.Model):
     class Meta:
         ordering = ["-created_at"]
         verbose_name_plural = "News"
+        permissions = [
+            ("can_review_news", "Can review member news (publish/reject)"),
+        ]
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["published_at"]),
@@ -91,6 +96,12 @@ class News(models.Model):
                 counter += 1
                 slug = f"{base_slug}-{counter}"
             self.slug = slug
+
+        if self.status == "published" and not self.published_at:
+            self.published_at = timezone.now()
+        elif self.status != "published":
+            self.published_at = None
+
         super().save(*args, **kwargs)
 
     def __str__(self):

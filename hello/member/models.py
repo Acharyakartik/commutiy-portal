@@ -24,6 +24,21 @@ class Member(models.Model):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     
     occupation = models.CharField(max_length=100, blank=True, null=True)
+    email_id = models.EmailField(max_length=254, blank=True, null=True)
+    profile_image = models.ImageField(upload_to="member/profile/", blank=True, null=True)
+    MARITAL_STATUS_CHOICES = [
+        ("single", "Single"),
+        ("married", "Married"),
+        ("divorced", "Divorced"),
+        ("widowed", "Widowed"),
+    ]
+    marital_status = models.CharField(
+        max_length=20,
+        choices=MARITAL_STATUS_CHOICES,
+        blank=True,
+        null=True,
+    )
+    education = models.CharField(max_length=120, blank=True, null=True)
     username = models.CharField(max_length=50, unique=True)
     password = models.CharField(max_length=128)  # store hashed password
     STATUS_CHOICES = [
@@ -91,6 +106,21 @@ class MemberDetail(models.Model):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     
     occupation = models.CharField(max_length=100, blank=True, null=True)
+    email_id = models.EmailField(max_length=254, blank=True, null=True)
+    profile_image = models.ImageField(upload_to="member/profile/", blank=True, null=True)
+    MARITAL_STATUS_CHOICES = [
+        ("single", "Single"),
+        ("married", "Married"),
+        ("divorced", "Divorced"),
+        ("widowed", "Widowed"),
+    ]
+    marital_status = models.CharField(
+        max_length=20,
+        choices=MARITAL_STATUS_CHOICES,
+        blank=True,
+        null=True,
+    )
+    education = models.CharField(max_length=120, blank=True, null=True)
     
     # Audit fields
     created_by = models.ForeignKey(

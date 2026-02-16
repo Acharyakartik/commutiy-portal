@@ -1,5 +1,6 @@
 from datetime import timedelta
 import os
+import random
 import django
 from django.utils import timezone
 from django.utils.text import slugify
@@ -35,6 +36,15 @@ category_objs = {}
 for cat_name in categories:
     category, created = Category.objects.get_or_create(name=cat_name)
     category_objs[cat_name] = category
+
+# Load available images from media/news/images
+media_images_dir = os.path.join("media", "news", "images")
+available_images = []
+if os.path.isdir(media_images_dir):
+    for fname in os.listdir(media_images_dir):
+        lower = fname.lower()
+        if lower.endswith((".jpg", ".jpeg", ".png", ".webp")):
+            available_images.append(f"news/images/{fname}")
 
 # Generate 10 posts per category
 news_posts = []
@@ -181,6 +191,7 @@ def make_unique_slug(title):
 for category_name, titles in sample_titles.items():
     category = category_objs[category_name]
     for i, title in enumerate(titles):
+        random_image = random.choice(available_images) if available_images else None
         news = News(
             title=title,
             slug=make_unique_slug(title),
@@ -189,7 +200,8 @@ for category_name, titles in sample_titles.items():
             status="published",
             published_at=base_date - timedelta(days=i),
             created_by=member_instance,
-            updated_by=member_instance
+            updated_by=member_instance,
+            image=random_image,
         )
         news_posts.append(news)
 

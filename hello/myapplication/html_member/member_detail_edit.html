@@ -1,0 +1,40 @@
+{% extends "html_member/base.html" %}
+
+{% block title %}Edit Member Detail{% endblock %}
+{% block nav_detail_menu %}menu-open{% endblock %}
+{% block nav_add_detail %}active{% endblock %}
+{% block page_title %}Edit Member Detail{% endblock %}
+{% block page_subtitle %}Update detail record #{{ member_detail.member_id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card card-outline card-success shadow-sm">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-id-card mr-1"></i>Edit Member Detail</h3>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="card-body">
+                <div class="row">
+                    {% for field in form %}
+                    <div class="col-md-6 mb-2">
+                        <label>{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                        <small class="text-danger">{{ field.errors|striptags }}</small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-footer text-right">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Update Detail
+                </button>
+                <a href="{% url 'member:profile' %}" class="btn btn-secondary ml-2">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

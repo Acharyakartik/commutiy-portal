@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'member.apps.MemberConfig',
     'news',
     'home.apps.HomeConfig',
+    'marketplace.apps.MarketplaceConfig',
 ]
 
 
@@ -73,6 +74,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'member.context_processors.sidebar_member',
             ],
         },
     },
@@ -111,7 +113,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # -------------------------------
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
@@ -125,10 +127,11 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',   # your project static folder
 ]
-STATIC_ROOT = BASE_DIR / '/static/assets_djngo_admin'  # for production collectstatic
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # for production collectstatic
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_BASE_URL = "http://192.168.1.4:8000"
 
 # -------------------------------
 # DEFAULT PK
