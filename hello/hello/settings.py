@@ -18,12 +18,11 @@ ALLOWED_HOSTS = ['*']
 # APPLICATIONS
 # -------------------------------
 
-# USE_ADMINLTE = True
-FRONTEND_BASE_URL = "http://192.168.1.5:3000" #this is the fornatend to use the api
+FRONTEND_BASE_URL = "http://192.168.1.4:3000"
 
 INSTALLED_APPS = [
     'rest_framework',
-    "corsheaders",
+    'corsheaders',
     'adminlte4',
     'adminlte4_theme',
     'django.contrib.admin',
@@ -49,7 +48,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'member.middleware.MemberAuthMiddleware',
-    "corsheaders.middleware.CorsMiddleware", #handle the core react api
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -59,6 +58,8 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'hello.urls'
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+
 # -------------------------------
 # TEMPLATES
 # -------------------------------
@@ -66,7 +67,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'myapplication'],  # global templates folder
+        'DIRS': [BASE_DIR / 'myapplication'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -92,6 +93,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 30,
+        },
     }
 }
 
@@ -119,19 +123,30 @@ USE_TZ = True
 
 
 # -------------------------------
-# STATIC FILES  ✅ FIXED
+# STATIC / MEDIA
 # -------------------------------
 
 STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',   # your project static folder
-]
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # for production collectstatic
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_BASE_URL = 'http://192.168.1.3:8000'
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-MEDIA_BASE_URL = "http://192.168.1.4:8000"
+
+# -------------------------------
+# EMAIL
+# -------------------------------
+
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('1', 'true', 'yes')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'rosedark597@gmail.com')
+
 
 # -------------------------------
 # DEFAULT PK
@@ -144,8 +159,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # LOGIN / LOGOUT
 # -------------------------------
 
-
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/'
-

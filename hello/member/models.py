@@ -1,31 +1,100 @@
 from django.db import models
-from django.db import models
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import check_password, make_password
+from django.utils import timezone
+import secrets
+import string
 
 
-# Create your models here.
-User = get_user_model() 
+User = get_user_model()
+
+
+class Country(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name_plural = "Countries"
+
+    def __str__(self):
+        return self.name
+
+
+class State(models.Model):
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name="states")
+    name = models.CharField(max_length=120)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ("country", "name")
+
+    def __str__(self):
+        return f"{self.name} ({self.country.name})"
+
+
+class City(models.Model):
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name="cities")
+    state = models.ForeignKey(
+        State,
+        on_delete=models.CASCADE,
+        related_name="cities",
+        blank=True,
+        null=True,
+    )
+    name = models.CharField(max_length=120)
+
+    class Meta:
+        unique_together = ("country", "state", "id")
+
+    def __str__(self):
+        if self.state:
+            return f"{self.name} ({self.state.name}, {self.country.name})"
+        return f"{self.name} ({self.country.name})"
+
+
 class Member(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
-    member_no = models.AutoField(primary_key=True)  # Auto-increment primary key
+    member_no = models.AutoField(primary_key=True)
     first_name = models.CharField(max_length=50)
     middle_name = models.CharField(max_length=50, blank=True, null=True)
     surname = models.CharField(max_length=50)
     phone_no = models.CharField(max_length=20, unique=True)
-    date_of_birth = models.DateField()
-    age = models.PositiveIntegerField()
-    
+    date_of_birth = models.DateField(null=True, blank=True)
+    age = models.PositiveIntegerField(blank=True, null=True)
+
     GENDER_CHOICES = [
-        ('M', 'Male'),
-        ('F', 'Female'),
-        ('O', 'Other'),
+        ("M", "Male"),
+        ("F", "Female"),
+        ("O", "Other"),
     ]
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    
+
     occupation = models.CharField(max_length=100, blank=True, null=True)
     email_id = models.EmailField(max_length=254, blank=True, null=True)
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        related_name="members",
+        blank=True,
+        null=True,
+    )
+    state = models.ForeignKey(
+        State,
+        on_delete=models.PROTECT,
+        related_name="members",
+        blank=True,
+        null=True,
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="members",
+        blank=True,
+        null=True,
+    )
+    residential_address = models.TextField(blank=True, null=True)
     profile_image = models.ImageField(upload_to="member/profile/", blank=True, null=True)
+
     MARITAL_STATUS_CHOICES = [
         ("single", "Single"),
         ("married", "Married"),
@@ -39,75 +108,131 @@ class Member(models.Model):
         null=True,
     )
     education = models.CharField(max_length=120, blank=True, null=True)
-    username = models.CharField(max_length=50, unique=True)
-    password = models.CharField(max_length=128)  # store hashed password
+
+    username = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    password = models.CharField(max_length=128, blank=True, null=True)
+
     STATUS_CHOICES = [
-        ('Active', 'Active'),
-        ('Inactive', 'Inactive'),
+        ("Active", "Active"),
+        ("Inactive", "Inactive"),
     ]
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
-      
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="Inactive")
+
+    APPROVAL_CHOICES = [
+        ("Pending", "Pending"),
+        ("Approved", "Approved"),
+        ("Not Approved", "Not Approved"),
+    ]
+    approval_status = models.CharField(max_length=20, choices=APPROVAL_CHOICES, default="Pending")
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="member_approved",
+        blank=True,
+        null=True,
+    )
+    approved_at = models.DateTimeField(blank=True, null=True)
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
-        related_name='member_created',
+        related_name="member_created",
         blank=True,
-        null=True
+        null=True,
     )
     updated_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
-        related_name='member_updated',
+        related_name="member_updated",
         blank=True,
-        null=True
+        null=True,
     )
-    created_at = models.DateTimeField(auto_now_add=True)  # timestamp of creation
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
+    @classmethod
+    def generate_unique_username(cls, first_name, surname, phone_no):
+        base = f"{(first_name or '').strip().lower()}.{(surname or '').strip().lower()}"
+        base = "".join(ch for ch in base if ch.isalnum() or ch == ".")
+        if not base:
+            base = "member"
+
+        suffix = (phone_no or "")[-4:] or "0000"
+        username = f"{base}.{suffix}"
+        counter = 1
+
+        while cls.objects.filter(username=username).exists():
+            username = f"{base}.{suffix}.{counter}"
+            counter += 1
+
+        return username
+
+    @staticmethod
+    def generate_temp_password(length=10):
+        alphabet = string.ascii_letters + string.digits + "@#$%"
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+
+    def approve(self, approver=None):
+        if not self.username:
+            self.username = self.generate_unique_username(self.first_name, self.surname, self.phone_no)
+
+        raw_password = self.generate_temp_password()
+        self.password = raw_password
+        self.status = "Active"
+        self.approval_status = "Approved"
+        self.approved_by = approver
+        self.approved_at = timezone.now()
+        self.save()
+        return raw_password
+
+    def mark_not_approved(self, approver=None):
+        self.status = "Inactive"
+        self.approval_status = "Not Approved"
+        self.approved_by = approver
+        self.approved_at = timezone.now()
+        self.save(update_fields=["status", "approval_status", "approved_by", "approved_at", "updated_at"])
+
     def save(self, *args, **kwargs):
-        # If the password is not hashed yet, hash it
-        if self.password and not self.password.startswith('pbkdf2_'):
+        if self.password and not self.password.startswith("pbkdf2_"):
             self.password = make_password(self.password)
         super().save(*args, **kwargs)
-        
+
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
         self.save()
 
     def check_password(self, raw_password):
-        return check_password(raw_password, self.password)
-    
+        return check_password(raw_password, self.password or "")
+
     def __str__(self):
         return f"{self.member_no} - {self.first_name} {self.surname}"
-    
-    
-    
-User1 = get_user_model()  # For created_by / updated_by references
+
 
 class MemberDetail(models.Model):
-    member_id = models.AutoField(primary_key=True)  # Auto-increment primary key
+    member_id = models.AutoField(primary_key=True)
     member_no = models.ForeignKey(
-        'member.Member',  # Reference to your Member table
+        "member.Member",
         on_delete=models.CASCADE,
-        related_name='details'
+        related_name="details",
     )
-    
+
     first_name = models.CharField(max_length=50)
     middle_name = models.CharField(max_length=50, blank=True, null=True)
     surname = models.CharField(max_length=50)
     date_of_birth = models.DateField(null=True, blank=True)
     age = models.PositiveIntegerField()
-    
+
     GENDER_CHOICES = [
-        ('M', 'Male'),
-        ('F', 'Female'),
-        ('O', 'Other'),
+        ("M", "Male"),
+        ("F", "Female"),
+        ("O", "Other"),
     ]
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    
+
     occupation = models.CharField(max_length=100, blank=True, null=True)
     email_id = models.EmailField(max_length=254, blank=True, null=True)
     profile_image = models.ImageField(upload_to="member/profile/", blank=True, null=True)
+
     MARITAL_STATUS_CHOICES = [
         ("single", "Single"),
         ("married", "Married"),
@@ -121,25 +246,23 @@ class MemberDetail(models.Model):
         null=True,
     )
     education = models.CharField(max_length=120, blank=True, null=True)
-    
-    # Audit fields
+
     created_by = models.ForeignKey(
         Member,
         on_delete=models.SET_NULL,
-        related_name='memberdetail_created',
+        related_name="memberdetail_created",
         blank=True,
-        null=True
+        null=True,
     )
     updated_by = models.ForeignKey(
         Member,
         on_delete=models.SET_NULL,
-        related_name='memberdetail_updated',
+        related_name="memberdetail_updated",
         blank=True,
-        null=True
+        null=True,
     )
-    created_at = models.DateTimeField(auto_now_add=True)  # timestamp of creation
-    updated_at = models.DateTimeField(auto_now=True)      # timestamp of last update
-
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Detail of {self.member_no}"

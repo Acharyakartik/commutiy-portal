@@ -1,9 +1,17 @@
-from django.shortcuts import render, redirect
+import json
+from datetime import date
+
+from django.conf import settings
+from django.core.mail import send_mail
 from django.db.models import Count
 from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_http_methods
 
-from .models import Member, MemberDetail
-from .forms import MemberDetailForm, MemberForm
+from .forms import MemberCreateForm, MemberDetailForm, MemberForm
+from .models import City, Country, Member, MemberDetail, State
 
 
 def _abs_media_url(request, file_field):
@@ -13,6 +21,50 @@ def _abs_media_url(request, file_field):
         return request.build_absolute_uri(file_field.url)
     except Exception:
         return None
+
+
+def _safe_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _calc_age(dob):
+    if not dob:
+        return None
+    today = date.today()
+    return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def _send_credentials_email(member, raw_password):
+    if not member.email_id:
+        return False, "Member email not available"
+
+    subject = "Your Member Login Credentials"
+    message = (
+        f"Hello {member.first_name},\n\n"
+        "Your account request has been approved.\n"
+        f"Username: {member.username}\n"
+        f"Password: {raw_password}\n\n"
+        "Please login and change your password after first login."
+    )
+
+    try:
+        sent = send_mail(
+            subject,
+            message,
+            getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
+            [member.email_id],
+            fail_silently=False,
+        )
+        if sent > 0:
+            return True, None
+        return False, "Email backend returned 0 sent emails"
+    except Exception as exc:
+        return False, str(exc)
+
+
 
 
 def _serialize_member(member, request):
@@ -30,10 +82,25 @@ def _serialize_member(member, request):
         "gender": member.gender,
         "gender_label": member.get_gender_display(),
         "occupation": member.occupation,
+        "country": {
+            "id": member.country_id,
+            "name": member.country.name if member.country else None,
+        },
+        "state": {
+            "id": member.state_id,
+            "name": member.state.name if member.state else None,
+        },
+        "city": {
+            "id": member.city_id,
+            "name": member.city.name if member.city else None,
+        },
+        "residential_address": member.residential_address,
         "marital_status": member.marital_status,
         "marital_status_label": member.get_marital_status_display() if member.marital_status else None,
         "education": member.education,
         "status": member.status,
+        "approval_status": member.approval_status,
+        "approved_at": member.approved_at.isoformat() if member.approved_at else None,
         "profile_image_url": _abs_media_url(request, member.profile_image),
         "created_at": member.created_at.isoformat() if member.created_at else None,
         "updated_at": member.updated_at.isoformat() if member.updated_at else None,
@@ -65,7 +132,7 @@ def _serialize_member_detail(detail, request):
 
 
 def get_logged_in_member(request):
-    member_no = request.session.get('member_no')
+    member_no = request.session.get("member_no")
     if not member_no:
         return None
     try:
@@ -75,65 +142,248 @@ def get_logged_in_member(request):
 
 
 def customer_login(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
 
         try:
             member = Member.objects.get(username=username)
 
-            if member.check_password(password):
-                request.session['member_no'] = member.member_no
-                return JsonResponse({
-                    'status': 'success',
-                    'message': f'Welcome {member.username}'
-                })
+            if member.approval_status != "Approved":
+                return JsonResponse({"status": "error", "message": "Account is not approved yet"})
 
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Invalid password'
-            })
+            if member.status != "Active":
+                return JsonResponse({"status": "error", "message": "Account is inactive"})
+
+            if not member.password or not member.check_password(password):
+                return JsonResponse({"status": "error", "message": "Invalid password"})
+
+            request.session["member_no"] = member.member_no
+            return JsonResponse({"status": "success", "message": f"Welcome {member.username}"})
 
         except Member.DoesNotExist:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Username not found'
-            })
+            return JsonResponse({"status": "error", "message": "Username not found"})
 
-    return render(request, 'html_member/login.html')
+    return render(request, "html_member/login.html")
 
 
 def dashboard(request):
     member = get_logged_in_member(request)
     if not member:
-        return redirect('member:customer_login')
+        return redirect("member:customer_login")
 
-    members = (
-        Member.objects
-        .filter(member_no=member.member_no)
-        .annotate(detail_count=Count('details'))
-    )
-
+    members = Member.objects.filter(member_no=member.member_no).annotate(detail_count=Count("details"))
     member_details = MemberDetail.objects.filter(member_no=member)
 
     context = {
-        'member': member,
-        'members': members,
-        'member_details': member_details,
-        'total_members': members.count(),
-        'total_details': member_details.count(),
-        'total_all': members.count() + member_details.count(),
+        "member": member,
+        "members": members,
+        "member_details": member_details,
+        "total_members": members.count(),
+        "total_details": member_details.count(),
+        "total_all": members.count() + member_details.count(),
     }
 
-    return render(request, 'html_member/dashboard.html', context)
+    return render(request, "html_member/dashboard.html", context)
+
+
+def member_create_page(request):
+    form = MemberCreateForm()
+    return render(request, "html_member/member_create.html", {"form": form})
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def member_create_api(request):
+    if request.method == "GET":
+        return JsonResponse(
+            {
+                "detail": "Use POST to create member",
+                "required_fields": [
+                    "first_name",
+                    "surname",
+                    "phone_no",
+                    "email_id",
+                    "gender",
+                    "country",
+                    "state",
+                    "residential_address",
+                ],
+                "optional_fields": [
+                    "middle_name",
+                    "date_of_birth",
+                    "occupation",
+                    "city",
+                ],
+            }
+        )
+
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"detail": "Invalid JSON payload"}, status=400)
+        form = MemberCreateForm(payload)
+    else:
+        form = MemberCreateForm(request.POST)
+
+    if not form.is_valid():
+        return JsonResponse({"status": "error", "errors": form.errors}, status=400)
+
+    cleaned = form.cleaned_data
+    member = form.save(commit=False)
+    member.age = _calc_age(cleaned.get("date_of_birth"))
+    member.status = "Inactive"
+    member.approval_status = "Pending"
+    member.username = None
+    member.password = None
+
+    logged_in_member = get_logged_in_member(request)
+    if logged_in_member and logged_in_member.user:
+        member.created_by = logged_in_member.user
+        member.updated_by = logged_in_member.user
+
+    member.save()
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": "Member request submitted. Waiting for superadmin approval.",
+            "member": _serialize_member(member, request),
+        },
+        status=201,
+    )
+
+
+def _require_superadmin(request):
+    return request.user.is_authenticated and request.user.is_superuser
+
+
+@require_GET
+def pending_member_requests_api(request):
+    if not _require_superadmin(request):
+        return JsonResponse({"detail": "Superadmin access required"}, status=403)
+
+    qs = Member.objects.filter(approval_status="Pending").order_by("-created_at")
+    data = [_serialize_member(member, request) for member in qs]
+    return JsonResponse({"results": data, "count": len(data)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def approve_member_api(request, member_no):
+    if not _require_superadmin(request):
+        return JsonResponse({"detail": "Superadmin access required"}, status=403)
+
+    member = Member.objects.filter(member_no=member_no).first()
+    if not member:
+        return JsonResponse({"detail": "Member not found"}, status=404)
+
+    if member.approval_status == "Approved":
+        return JsonResponse({"detail": "Member already approved"}, status=400)
+
+    raw_password = member.approve(approver=request.user)
+    email_sent, email_error = _send_credentials_email(member, raw_password)
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": "Member approved successfully",
+            "member": _serialize_member(member, request),
+            "credentials": {
+                "username": member.username,
+                "temporary_password": raw_password,
+            },
+            "email_sent": email_sent,           "email_error": email_error,
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def reject_member_api(request, member_no):
+    if not _require_superadmin(request):
+        return JsonResponse({"detail": "Superadmin access required"}, status=403)
+
+    member = Member.objects.filter(member_no=member_no).first()
+    if not member:
+        return JsonResponse({"detail": "Member not found"}, status=404)
+
+    member.mark_not_approved(approver=request.user)
+    return JsonResponse({"status": "success", "message": "Member marked as not approved"})
+
+@require_GET
+def country_list_api(request):
+    countries = list(Country.objects.values("id", "name").order_by("name"))
+    return JsonResponse({"results": countries})
+
+
+@require_GET
+def state_list_api(request):
+    country_id = _safe_int(request.GET.get("country_id"))
+
+    qs = State.objects.select_related("country").all()
+    if country_id:
+        if not Country.objects.filter(id=country_id).exists():
+            return JsonResponse({"detail": "country_id not found"}, status=404)
+        qs = qs.filter(country_id=country_id)
+
+    data = [
+        {
+            "id": st.id,
+            "name": st.name,
+            "country_id": st.country_id,
+            "country_name": st.country.name if st.country else None,
+        }
+        for st in qs.order_by("name")
+    ]
+    return JsonResponse({"results": data, "count": len(data)})
+
+
+@require_GET
+def city_list_api(request):
+    country_id = _safe_int(request.GET.get("country_id"))
+    state_id = _safe_int(request.GET.get("state_id"))
+
+    state_obj = None
+    if state_id:
+        state_obj = State.objects.select_related("country").filter(id=state_id).first()
+        if not state_obj:
+            return JsonResponse({"detail": "state_id not found"}, status=404)
+
+    if country_id:
+        if not Country.objects.filter(id=country_id).exists():
+            return JsonResponse({"detail": "country_id not found"}, status=404)
+
+    if state_obj and country_id and state_obj.country_id != country_id:
+        return JsonResponse({"detail": "state_id does not belong to country_id"}, status=400)
+
+    qs = City.objects.select_related("country", "state").all()
+    if state_obj:
+        qs = qs.filter(state_id=state_obj.id)
+    elif country_id:
+        qs = qs.filter(country_id=country_id)
+
+    data = [
+        {
+            "id": city.id,
+            "name": city.name,
+            "country_id": city.country_id,
+            "country_name": city.country.name if city.country else None,
+            "state_id": city.state_id,
+            "state_name": city.state.name if city.state else None,
+        }
+        for city in qs.order_by("name")
+    ]
+    return JsonResponse({"results": data, "count": len(data)})
 
 
 def member_detail_add(request):
     member = get_logged_in_member(request)
     if not member:
-        return redirect('member:customer_login')
+        return redirect("member:customer_login")
 
-    if request.method == 'POST':
+    if request.method == "POST":
         form = MemberDetailForm(request.POST, request.FILES)
 
         if form.is_valid():
@@ -143,148 +393,219 @@ def member_detail_add(request):
             member_detail.updated_by = member
             member_detail.save()
 
-            return JsonResponse({
-                'status': 'success',
-                'message': 'Member detail saved successfully'
-            })
+            return JsonResponse({"status": "success", "message": "Member detail saved successfully"})
 
-        return JsonResponse({
-            'status': 'error',
-            'errors': form.errors
-        })
+        return JsonResponse({"status": "error", "errors": form.errors})
 
     form = MemberDetailForm()
-    return render(request, 'html_member/member_detail_add.html', {
-        'form': form,
-        'member': member
-    })
+    return render(request, "html_member/member_detail_add.html", {"form": form, "member": member})
 
 
 def member_edit(request):
     member = get_logged_in_member(request)
     if not member:
-        return redirect('member:customer_login')
+        return redirect("member:customer_login")
 
-    if request.method == 'POST':
+    if request.method == "POST":
         form = MemberForm(request.POST, request.FILES, instance=member)
         if form.is_valid():
             obj = form.save(commit=False)
             obj.updated_by = member.user if member.user else None
             obj.save()
-            return redirect('member:profile')
+            return redirect("member:profile")
     else:
         form = MemberForm(instance=member)
 
-    return render(request, 'html_member/member_edit.html', {
-        'form': form,
-        'member': member,
-    })
+    return render(request, "html_member/member_edit.html", {"form": form, "member": member})
 
 
 def member_detail_edit(request, member_id):
     member = get_logged_in_member(request)
     if not member:
-        return redirect('member:customer_login')
+        return redirect("member:customer_login")
 
     try:
         member_detail = MemberDetail.objects.get(member_id=member_id, member_no=member)
     except MemberDetail.DoesNotExist:
-        return redirect('member:dashboard')
+        return redirect("member:dashboard")
 
-    if request.method == 'POST':
+    if request.method == "POST":
         form = MemberDetailForm(request.POST, request.FILES, instance=member_detail)
         if form.is_valid():
             obj = form.save(commit=False)
             obj.updated_by = member
             obj.save()
-            return redirect('member:profile')
+            return redirect("member:profile")
     else:
         form = MemberDetailForm(instance=member_detail)
 
-    return render(request, 'html_member/member_detail_edit.html', {
-        'form': form,
-        'member': member,
-        'member_detail': member_detail,
-    })
+    return render(
+        request,
+        "html_member/member_detail_edit.html",
+        {
+            "form": form,
+            "member": member,
+            "member_detail": member_detail,
+        },
+    )
 
 
 def profile(request):
     member = get_logged_in_member(request)
     if not member:
-        return redirect('member:customer_login')
+        return redirect("member:customer_login")
 
-    from news.models import News
     from marketplace.models import BnsModel
+    from news.models import News
 
     member_details_qs = MemberDetail.objects.filter(member_no=member)
-    latest_detail = member_details_qs.order_by('-created_at').first()
-    latest_news = News.objects.filter(created_by=member).order_by('-created_at').first()
-    latest_listing = BnsModel.objects.filter(created_by=member).order_by('-created_at').first()
+    latest_detail = member_details_qs.order_by("-created_at").first()
+    latest_news = News.objects.filter(created_by=member).order_by("-created_at").first()
+    latest_listing = BnsModel.objects.filter(created_by=member).order_by("-created_at").first()
 
-    return render(request, 'html_member/profile.html', {
-        'member': member,
-        'detail_count': member_details_qs.count(),
-        'news_count': News.objects.filter(created_by=member).count(),
-        'listing_count': BnsModel.objects.filter(created_by=member).count(),
-        'latest_detail': latest_detail,
-        'latest_news': latest_news,
-        'latest_listing': latest_listing,
-    })
+    return render(
+        request,
+        "html_member/profile.html",
+        {
+            "member": member,
+            "detail_count": member_details_qs.count(),
+            "news_count": News.objects.filter(created_by=member).count(),
+            "listing_count": BnsModel.objects.filter(created_by=member).count(),
+            "latest_detail": latest_detail,
+            "latest_news": latest_news,
+            "latest_listing": latest_listing,
+        },
+    )
 
 
 def profile_api(request):
-    if request.method != 'GET':
-        return JsonResponse({'detail': 'Method not allowed'}, status=405)
+    if request.method != "GET":
+        return JsonResponse({"detail": "Method not allowed"}, status=405)
 
     member = get_logged_in_member(request)
     if not member:
-        return JsonResponse({'detail': 'Authentication required'}, status=401)
+        return JsonResponse({"detail": "Authentication required"}, status=401)
 
-    from news.models import News
     from marketplace.models import BnsModel
+    from news.models import News
 
-    details_qs = MemberDetail.objects.filter(member_no=member).order_by('-created_at')
+    details_qs = MemberDetail.objects.filter(member_no=member).order_by("-created_at")
     latest_detail = details_qs.first()
-    latest_news = News.objects.filter(created_by=member).order_by('-created_at').first()
-    latest_listing = BnsModel.objects.filter(created_by=member).order_by('-created_at').first()
+    latest_news = News.objects.filter(created_by=member).order_by("-created_at").first()
+    latest_listing = BnsModel.objects.filter(created_by=member).order_by("-created_at").first()
 
     response = {
-        'member': _serialize_member(member, request),
-        'counts': {
-            'details': details_qs.count(),
-            'news': News.objects.filter(created_by=member).count(),
-            'listings': BnsModel.objects.filter(created_by=member).count(),
+        "member": _serialize_member(member, request),
+        "counts": {
+            "details": details_qs.count(),
+            "news": News.objects.filter(created_by=member).count(),
+            "listings": BnsModel.objects.filter(created_by=member).count(),
         },
-        'latest_detail': _serialize_member_detail(latest_detail, request),
-        'latest_news': {
-            'id': latest_news.id,
-            'title': latest_news.title,
-            'slug': latest_news.slug,
-            'status': latest_news.status,
-            'status_label': latest_news.get_status_display(),
-            'category': latest_news.category.name if latest_news.category else None,
-            'created_at': latest_news.created_at.isoformat() if latest_news.created_at else None,
-        } if latest_news else None,
-        'latest_listing': {
-            'id': latest_listing.id,
-            'title': latest_listing.title,
-            'slug': latest_listing.slug,
-            'status': latest_listing.status,
-            'status_label': latest_listing.get_status_display(),
-            'listing_type': latest_listing.listing_type,
-            'listing_type_label': latest_listing.get_listing_type_display(),
-            'price': latest_listing.price,
-            'created_at': latest_listing.created_at.isoformat() if latest_listing.created_at else None,
-            'image_url': _abs_media_url(request, latest_listing.image),
-        } if latest_listing else None,
+        "latest_detail": _serialize_member_detail(latest_detail, request),
+        "latest_news": {
+            "id": latest_news.id,
+            "title": latest_news.title,
+            "slug": latest_news.slug,
+            "status": latest_news.status,
+            "status_label": latest_news.get_status_display(),
+            "category": latest_news.category.name if latest_news.category else None,
+            "created_at": latest_news.created_at.isoformat() if latest_news.created_at else None,
+        }
+        if latest_news
+        else None,
+        "latest_listing": {
+            "id": latest_listing.id,
+            "title": latest_listing.title,
+            "slug": latest_listing.slug,
+            "status": latest_listing.status,
+            "status_label": latest_listing.get_status_display(),
+            "listing_type": latest_listing.listing_type,
+            "listing_type_label": latest_listing.get_listing_type_display(),
+            "price": latest_listing.price,
+            "created_at": latest_listing.created_at.isoformat() if latest_listing.created_at else None,
+            "image_url": _abs_media_url(request, latest_listing.image),
+        }
+        if latest_listing
+        else None,
     }
     return JsonResponse(response)
 
 
+def public_profile_api(request):
+    if request.method != "GET":
+        return JsonResponse({"detail": "Method not allowed"}, status=405)
+
+    member_no = (request.GET.get("member_no") or "").strip()
+    username = (request.GET.get("username") or "").strip()
+
+    if not member_no and not username:
+        return JsonResponse({"detail": "Pass member_no or username as query parameter"}, status=400)
+
+    qs = Member.objects.all()
+    if member_no:
+        qs = qs.filter(member_no=member_no)
+    else:
+        qs = qs.filter(username=username)
+
+    member = qs.first()
+    if not member:
+        return JsonResponse({"detail": "Member not found"}, status=404)
+
+    data = {
+        "member_no": member.member_no,
+        "first_name": member.first_name,
+        "middle_name": member.middle_name,
+        "surname": member.surname,
+        "full_name": f"{member.first_name} {member.middle_name or ''} {member.surname}".strip(),
+        "email_id": member.email_id,
+        "gender": member.gender,
+        "gender_label": member.get_gender_display(),
+        "occupation": member.occupation,
+        "country": {
+            "id": member.country_id,
+            "name": member.country.name if member.country else None,
+        },
+        "state": {
+            "id": member.state_id,
+            "name": member.state.name if member.state else None,
+        },
+        "city": {
+            "id": member.city_id,
+            "name": member.city.name if member.city else None,
+        },
+        "residential_address": member.residential_address,
+        "marital_status": member.marital_status,
+        "marital_status_label": member.get_marital_status_display() if member.marital_status else None,
+        "education": member.education,
+        "profile_image_url": _abs_media_url(request, member.profile_image),
+    }
+    return JsonResponse({"result": data})
+
+
 def memberjson(request):
-    return render(request, 'html_member/member.json')
+    return render(request, "html_member/member.json")
 
 
 def logout_view(request):
     request.session.flush()
-    return render(request, 'html_member/login.html')
+    return render(request, "html_member/login.html")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
