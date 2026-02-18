@@ -2,8 +2,10 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
+from datetime import timedelta
 import secrets
 import string
+import re
 
 
 User = get_user_model()
@@ -151,20 +153,19 @@ class Member(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     @classmethod
-    def generate_unique_username(cls, first_name, surname, phone_no):
-        base = f"{(first_name or '').strip().lower()}.{(surname or '').strip().lower()}"
-        base = "".join(ch for ch in base if ch.isalnum() or ch == ".")
+    def generate_unique_username(cls, first_name, surname, phone_no=None):
+        base_first = (first_name or "").strip().lower()
+        base_surname = (surname or "").strip().lower()
+        base = f"{base_first}{base_surname}"
+        base = re.sub(r"[^a-z0-9]", "", base)
         if not base:
             base = "member"
 
-        suffix = (phone_no or "")[-4:] or "0000"
-        username = f"{base}.{suffix}"
+        username = base
         counter = 1
-
         while cls.objects.filter(username=username).exists():
-            username = f"{base}.{suffix}.{counter}"
+            username = f"{base}{counter}"
             counter += 1
-
         return username
 
     @staticmethod
@@ -199,7 +200,10 @@ class Member(models.Model):
 
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
-        self.save()
+        self.save(update_fields=["password", "updated_at"])
+        if self.user_id:
+            self.user.set_password(raw_password)
+            self.user.save(update_fields=["password"])
 
     def check_password(self, raw_password):
         return check_password(raw_password, self.password or "")
@@ -266,3 +270,40 @@ class MemberDetail(models.Model):
 
     def __str__(self):
         return f"Detail of {self.member_no}"
+
+
+class MemberPasswordResetToken(models.Model):
+    member = models.ForeignKey(
+        Member,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+    )
+    token = models.CharField(max_length=128, unique=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def is_used(self):
+        return self.used_at is not None
+
+    @property
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    def is_valid(self):
+        return (not self.is_used) and (not self.is_expired)
+
+    def mark_used(self):
+        self.used_at = timezone.now()
+        self.save(update_fields=["used_at"])
+
+    @classmethod
+    def create_for_member(cls, member, ttl_minutes=30):
+        cls.objects.filter(member=member, used_at__isnull=True).update(used_at=timezone.now())
+        token = secrets.token_urlsafe(48)
+        expires_at = timezone.now() + timedelta(minutes=ttl_minutes)
+        return cls.objects.create(member=member, token=token, expires_at=expires_at)

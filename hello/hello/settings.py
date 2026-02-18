@@ -8,6 +8,10 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+
+
+
+
 # SECURITY
 SECRET_KEY = 'django-insecure-change-this-in-production'
 DEBUG = True
@@ -17,8 +21,11 @@ ALLOWED_HOSTS = ['*']
 # -------------------------------
 # APPLICATIONS
 # -------------------------------
-
-FRONTEND_BASE_URL = "http://192.168.1.4:3000"
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://192.168.1.3:8000").rstrip("/")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://192.168.1.4:3000").rstrip("/")
+MEMBER_LOGIN_URL = os.getenv("MEMBER_LOGIN_URL", f"{FRONTEND_BASE_URL}/login/")
+SITE_BASE_URL = os.getenv("SITE_BASE_URL", BACKEND_BASE_URL)
+PASSWORD_RESET_TOKEN_MINUTES = int(os.getenv("PASSWORD_RESET_TOKEN_MINUTES", "30"))
 
 INSTALLED_APPS = [
     'rest_framework',
@@ -132,20 +139,29 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-MEDIA_BASE_URL = 'http://192.168.1.3:8000'
+MEDIA_BASE_URL = os.getenv("MEDIA_BASE_URL", BACKEND_BASE_URL)
 
 
 # -------------------------------
 # EMAIL
 # -------------------------------
 
+# Change these 2 values once; all email flows use them.
+MAIL_ACCOUNT_EMAIL = os.getenv("MAIL_ACCOUNT_EMAIL", "neighbornett@gmail.com")
+MAIL_ACCOUNT_APP_PASSWORD = os.getenv("MAIL_ACCOUNT_APP_PASSWORD", "fejflxbdsafwprdz")
+
+# For Gmail SMTP, use an App Password in EMAIL_HOST_PASSWORD
+# (regular Gmail account password will not work).
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True').lower() in ('1', 'true', 'yes')
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'rosedark597@gmail.com')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False').lower() in ('1', 'true', 'yes')
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', MAIL_ACCOUNT_EMAIL)
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', MAIL_ACCOUNT_APP_PASSWORD)
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f"Community Portal <{MAIL_ACCOUNT_EMAIL}>")
+REPLY_TO_EMAIL = os.getenv('REPLY_TO_EMAIL', MAIL_ACCOUNT_EMAIL)
 
 
 # -------------------------------

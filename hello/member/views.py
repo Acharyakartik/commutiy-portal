@@ -2,16 +2,18 @@ import json
 from datetime import date
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage, send_mail
+from django.db import transaction
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from .forms import MemberCreateForm, MemberDetailForm, MemberForm
-from .models import City, Country, Member, MemberDetail, State
+from .models import City, Country, Member, MemberDetail, MemberPasswordResetToken, State
 
 
 def _abs_media_url(request, file_field):
@@ -37,24 +39,62 @@ def _calc_age(dob):
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 
-def _send_credentials_email(member, raw_password):
+def _build_reset_link(token, request=None):
+    path = reverse("member:reset_password_with_token", args=[token])
+    if request:
+        return request.build_absolute_uri(path)
+    base_url = getattr(settings, "SITE_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    return f"{base_url}{path}"
+
+
+def _send_approval_email(member, reset_link):
     if not member.email_id:
         return False, "Member email not available"
 
-    subject = "Your Member Login Credentials"
+    subject = "Your Account Is Approved - Set Your Password"
     message = (
         f"Hello {member.first_name},\n\n"
         "Your account request has been approved.\n"
         f"Username: {member.username}\n"
-        f"Password: {raw_password}\n\n"
-        "Please login and change your password after first login."
+        "For security, password is not sent in email.\n"
+        "Use this one-time link to set your password:\n"
+        f"{reset_link}\n\n"
+        "This link will expire and can be used only once."
+    )
+
+    try:
+        email = EmailMessage(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [member.email_id],
+            reply_to=[settings.REPLY_TO_EMAIL],
+        )
+        sent = email.send(fail_silently=False)
+        if sent > 0:
+            return True, None
+        return False, "Email backend returned 0 sent emails"
+    except Exception as exc:
+        return False, f"{exc.__class__.__name__}: {exc}"
+
+
+def _send_request_received_email(member):
+    if not member.email_id:
+        return False, "Member email not available"
+
+    subject = "Member Request Received"
+    message = (
+        f"Hello {member.first_name},\n\n"
+        "Your membership request has been received successfully.\n"
+        "Your account is currently Pending approval by superadmin.\n\n"
+        "You will receive login credentials after approval."
     )
 
     try:
         sent = send_mail(
             subject,
             message,
-            getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@example.com"),
+            settings.DEFAULT_FROM_EMAIL,
             [member.email_id],
             fail_silently=False,
         )
@@ -62,9 +102,36 @@ def _send_credentials_email(member, raw_password):
             return True, None
         return False, "Email backend returned 0 sent emails"
     except Exception as exc:
-        return False, str(exc)
+        return False, f"{exc.__class__.__name__}: {exc}"
 
 
+def _approve_member_and_send_email(member, approver, request=None):
+    if member.approval_status == "Approved":
+        return {
+            "ok": False,
+            "error": "Member already approved",
+            "credentials": None,
+            "email_sent": False,
+            "email_error": None,
+        }
+
+    with transaction.atomic():
+        member.approve(approver=approver)
+        ttl_minutes = int(getattr(settings, "PASSWORD_RESET_TOKEN_MINUTES", 30))
+        token_obj = MemberPasswordResetToken.create_for_member(member, ttl_minutes=ttl_minutes)
+        reset_link = _build_reset_link(token_obj.token, request=request)
+
+    email_sent, email_error = _send_approval_email(member, reset_link)
+    return {
+        "ok": True,
+        "error": None,
+        "credentials": {
+            "username": member.username,
+            "set_password_link": reset_link,
+        },
+        "email_sent": email_sent,
+        "email_error": email_error,
+    }
 
 
 def _serialize_member(member, request):
@@ -244,12 +311,15 @@ def member_create_api(request):
         member.updated_by = logged_in_member.user
 
     member.save()
+    request_email_sent, request_email_error = _send_request_received_email(member)
 
     return JsonResponse(
         {
             "status": "success",
             "message": "Member request submitted. Waiting for superadmin approval.",
             "member": _serialize_member(member, request),
+            "request_email_sent": request_email_sent,
+            "request_email_error": request_email_error,
         },
         status=201,
     )
@@ -279,22 +349,18 @@ def approve_member_api(request, member_no):
     if not member:
         return JsonResponse({"detail": "Member not found"}, status=404)
 
-    if member.approval_status == "Approved":
-        return JsonResponse({"detail": "Member already approved"}, status=400)
-
-    raw_password = member.approve(approver=request.user)
-    email_sent, email_error = _send_credentials_email(member, raw_password)
+    result = _approve_member_and_send_email(member, request.user, request=request)
+    if not result["ok"]:
+        return JsonResponse({"detail": result["error"]}, status=400)
 
     return JsonResponse(
         {
             "status": "success",
             "message": "Member approved successfully",
             "member": _serialize_member(member, request),
-            "credentials": {
-                "username": member.username,
-                "temporary_password": raw_password,
-            },
-            "email_sent": email_sent,           "email_error": email_error,
+            "credentials": result["credentials"],
+            "email_sent": result["email_sent"],
+            "email_error": result["email_error"],
         }
     )
 
@@ -311,6 +377,67 @@ def reject_member_api(request, member_no):
 
     member.mark_not_approved(approver=request.user)
     return JsonResponse({"status": "success", "message": "Member marked as not approved"})
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def reset_password_with_token(request, token):
+    token_obj = (
+        MemberPasswordResetToken.objects.select_related("member")
+        .filter(token=token)
+        .first()
+    )
+
+    if not token_obj:
+        return render(
+            request,
+            "html_member/reset_password.html",
+            {"invalid": True, "message": "Invalid reset link."},
+            status=400,
+        )
+
+    if not token_obj.is_valid():
+        return render(
+            request,
+            "html_member/reset_password.html",
+            {"invalid": True, "message": "Reset link is expired or already used."},
+            status=400,
+        )
+
+    if request.method == "POST":
+        password = (request.POST.get("password") or "").strip()
+        confirm_password = (request.POST.get("confirm_password") or "").strip()
+
+        if len(password) < 8:
+            return render(
+                request,
+                "html_member/reset_password.html",
+                {"invalid": False, "message": "Password must be at least 8 characters."},
+                status=400,
+            )
+
+        if password != confirm_password:
+            return render(
+                request,
+                "html_member/reset_password.html",
+                {"invalid": False, "message": "Passwords do not match."},
+                status=400,
+            )
+
+        member = token_obj.member
+        member.set_password(password)
+        token_obj.mark_used()
+        return render(
+            request,
+            "html_member/reset_password.html",
+            {"success": True, "message": "Password set successfully. You can now login."},
+        )
+
+    return render(
+        request,
+        "html_member/reset_password.html",
+        {"invalid": False, "message": ""},
+    )
 
 @require_GET
 def country_list_api(request):

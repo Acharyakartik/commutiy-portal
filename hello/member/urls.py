@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/members/pending/", views.pending_member_requests_api, name="pending_member_requests_api"),
     path("api/members/<int:member_no>/approve/", views.approve_member_api, name="approve_member_api"),
     path("api/members/<int:member_no>/reject/", views.reject_member_api, name="reject_member_api"),
+    path("reset-password/<str:token>/", views.reset_password_with_token, name="reset_password_with_token"),
 
     path("api/master/countries/", views.country_list_api, name="country_list_api"),
     path("api/master/states/", views.state_list_api, name="state_list_api"),
