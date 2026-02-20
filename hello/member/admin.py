@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 from django.conf import settings
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMultiAlternatives
 from django.urls import reverse
 from member.models import City, Country, Member, MemberDetail, MemberPasswordResetToken, State
 
@@ -9,21 +9,40 @@ from member.models import City, Country, Member, MemberDetail, MemberPasswordRes
 class CountryAdmin(admin.ModelAdmin):
     list_display = ("id", "name")
     search_fields = ("name",)
+    ordering = ("name",)
+    list_per_page = 50
+    show_full_result_count = False
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_staff
 
 
 @admin.register(State)
 class StateAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "country")
-    list_filter = ("country",)
     search_fields = ("name", "country__name")
+    ordering = ("name",)
+    list_select_related = ("country",)
+    autocomplete_fields = ("country",)
+    list_per_page = 50
+    show_full_result_count = False
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_staff
 
 
 @admin.register(City)
 class CityAdmin(admin.ModelAdmin):
-    list_display = ("id", "name")
-    list_filter = ("country", "state")
+    list_display = ("id", "name", "state", "country")
     search_fields = ("name", "state__name", "country__name")
-    list_per_page = 10
+    ordering = ("name",)
+    list_select_related = ("country", "state")
+    autocomplete_fields = ("country", "state")
+    list_per_page = 50
+    show_full_result_count = False
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_staff
 
 
 @admin.register(Member)
@@ -38,18 +57,21 @@ class MemberAdmin(admin.ModelAdmin):
         "approval_status",
         "status",
         "username",
-        "country",
-        "state",
-        "city",
+        # "country",
+        # "state",
+        # "city",
         "approved_by",
         "approved_at",
         "created_at",
     )
-    list_filter = ("approval_status", "status", "gender", "country", "state")
+    list_filter = ("approval_status", "status", "gender")
+    list_select_related = ("approved_by", "country", "state", "city")
+    autocomplete_fields = ("country", "state", "city")
     readonly_fields = ("approved_by", "approved_at", "created_at", "updated_at")
     actions = ["approve_selected", "mark_not_approved"]
-    list_per_page = 10
+    list_per_page = 25
     list_max_show_all = 200
+    show_full_result_count = False
 
     def _build_reset_link(self, token):
         path = reverse("member:reset_password_with_token", args=[token])
@@ -61,7 +83,7 @@ class MemberAdmin(admin.ModelAdmin):
             return False, "Member email not available"
 
         subject = "Your Account Is Approved - Set Your Password"
-        message = (
+        text_message = (
             f"Hello {member.first_name},\n\n"
             "Your account request has been approved.\n"
             f"Username: {member.username}\n"
@@ -70,15 +92,72 @@ class MemberAdmin(admin.ModelAdmin):
             f"{reset_link}\n\n"
             "This link will expire and can be used only once."
         )
+        display_name = member.first_name or "Member"
+        username = member.username or member.email_id or ""
+        html_message = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Membership Approved</title>
+</head>
+<body style="margin:0;padding:0;background:#f2f3f5;font-family:Arial,sans-serif;color:#111;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table width="700" cellpadding="0" cellspacing="0" style="max-width:700px;background:#ffffff;">
+          <tr>
+            <td style="background:#000;padding:28px 32px;color:#fff;">
+              <div style="font-size:34px;font-weight:700;letter-spacing:1px;">Community Portal</div>
+              <div style="font-size:12px;opacity:.85;margin-top:6px;">membership approval update</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 32px;">
+              <p style="margin:0 0 18px 0;font-size:18px;">Hello {display_name},</p>
+              <p style="margin:0 0 18px 0;font-size:18px;line-height:1.6;">
+                Your membership request has been <strong>approved</strong>.
+              </p>
+              <p style="margin:0 0 18px 0;font-size:18px;line-height:1.6;">
+                <strong>Username:</strong> {username}<br>
+                <strong>Password:</strong> Not shared by email for security.
+              </p>
+              <p style="margin:0 0 22px 0;font-size:18px;line-height:1.6;">
+                Click below to set your password and activate your account.
+              </p>
+              <table cellpadding="0" cellspacing="0" style="margin:0 0 18px 0;">
+                <tr>
+                  <td bgcolor="#007bff" style="border-radius:4px;">
+                    <a href="{reset_link}" style="display:inline-block;padding:12px 22px;color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Set Password</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#555;">
+                This link is one-time use and will expire automatically.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;background:#f7f7f8;color:#666;font-size:12px;">
+              &copy; 2026 Community Portal
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
 
         try:
-            email = EmailMessage(
+            email = EmailMultiAlternatives(
                 subject,
-                message,
+                text_message,
                 settings.DEFAULT_FROM_EMAIL,
                 [member.email_id],
                 reply_to=[settings.REPLY_TO_EMAIL],
             )
+            email.attach_alternative(html_message, "text/html")
             sent = email.send(fail_silently=False)
             if sent > 0:
                 return True, None
@@ -184,7 +263,7 @@ class MemberDetailAdmin(admin.ModelAdmin):
         "updated_by",
         "updated_at",
     )
-    list_filter = ("gender", "member_no")
+    list_filter = ("gender",)
     readonly_fields = (
         "created_by",
         "created_at",
@@ -200,9 +279,10 @@ class MemberDetailAdmin(admin.ModelAdmin):
         "member_no__first_name",
         "member_no__surname",
     )
-    raw_id_fields = ["member_no"]
-    list_per_page = 10
+    autocomplete_fields = ("member_no",)
+    list_per_page = 25
     list_max_show_all = 200
+    show_full_result_count = False
 
     class Media:
         css = {

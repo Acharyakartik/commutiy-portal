@@ -13,7 +13,10 @@
                 data: function(params) {
                     return {
                         term: params.term,      // what the user types
-                        page: params.page || 1  // pagination
+                        page: params.page || 1, // pagination
+                        app_label: $element.attr('data-app-label'),
+                        model_name: $element.attr('data-model-name'),
+                        field_name: $element.attr('data-field-name')
                     };
                 },
                 delay: 250 // small delay to reduce requests

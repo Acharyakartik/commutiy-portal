@@ -2,7 +2,7 @@ import json
 from datetime import date
 
 from django.conf import settings
-from django.core.mail import EmailMessage, send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.db.models import Count
 from django.http import JsonResponse
@@ -52,7 +52,7 @@ def _send_approval_email(member, reset_link):
         return False, "Member email not available"
 
     subject = "Your Account Is Approved - Set Your Password"
-    message = (
+    text_message = (
         f"Hello {member.first_name},\n\n"
         "Your account request has been approved.\n"
         f"Username: {member.username}\n"
@@ -61,15 +61,72 @@ def _send_approval_email(member, reset_link):
         f"{reset_link}\n\n"
         "This link will expire and can be used only once."
     )
+    display_name = member.first_name or "Member"
+    username = member.username or member.email_id or ""
+    html_message = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Membership Approved</title>
+</head>
+<body style="margin:0;padding:0;background:#f2f3f5;font-family:Arial,sans-serif;color:#111;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table width="700" cellpadding="0" cellspacing="0" style="max-width:700px;background:#ffffff;">
+          <tr>
+            <td style="background:#000;padding:28px 32px;color:#fff;">
+              <div style="font-size:34px;font-weight:700;letter-spacing:1px;">Community Portal</div>
+              <div style="font-size:12px;opacity:.85;margin-top:6px;">membership approval update</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 32px;">
+              <p style="margin:0 0 18px 0;font-size:18px;">Hello {display_name},</p>
+              <p style="margin:0 0 18px 0;font-size:18px;line-height:1.6;">
+                Your membership request has been <strong>approved</strong>.
+              </p>
+              <p style="margin:0 0 18px 0;font-size:18px;line-height:1.6;">
+                <strong>Username:</strong> {username}<br>
+                <strong>Password:</strong> Not shared by email for security.
+              </p>
+              <p style="margin:0 0 22px 0;font-size:18px;line-height:1.6;">
+                Click below to set your password and activate your account.
+              </p>
+              <table cellpadding="0" cellspacing="0" style="margin:0 0 18px 0;">
+                <tr>
+                  <td bgcolor="#007bff" style="border-radius:4px;">
+                    <a href="{reset_link}" style="display:inline-block;padding:12px 22px;color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Set Password</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#555;">
+                This link is one-time use and will expire automatically.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;background:#f7f7f8;color:#666;font-size:12px;">
+              &copy; 2026 Community Portal
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
 
     try:
-        email = EmailMessage(
+        email = EmailMultiAlternatives(
             subject,
-            message,
+            text_message,
             settings.DEFAULT_FROM_EMAIL,
             [member.email_id],
             reply_to=[settings.REPLY_TO_EMAIL],
         )
+        email.attach_alternative(html_message, "text/html")
         sent = email.send(fail_silently=False)
         if sent > 0:
             return True, None
@@ -83,19 +140,67 @@ def _send_request_received_email(member):
         return False, "Member email not available"
 
     subject = "Member Request Received"
-    message = (
+    text_message = (
         f"Hello {member.first_name},\n\n"
         "Your membership request has been received successfully.\n"
         "Your account is currently Pending approval by superadmin.\n\n"
         "You will receive login credentials after approval."
     )
+    display_name = member.first_name or "Member"
+    html_message = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Member Request Received</title>
+</head>
+<body style="margin:0;padding:0;background:#f2f3f5;font-family:Arial,sans-serif;color:#111;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table width="700" cellpadding="0" cellspacing="0" style="max-width:700px;background:#ffffff;">
+          <tr>
+            <td style="background:#000;padding:28px 32px;color:#fff;">
+              <div style="font-size:34px;font-weight:700;letter-spacing:1px;">Community Portal</div>
+              <div style="font-size:12px;opacity:.85;margin-top:6px;">membership request update</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 32px;">
+              <p style="margin:0 0 18px 0;font-size:18px;">Hello {display_name},</p>
+              <p style="margin:0 0 18px 0;font-size:18px;line-height:1.6;">
+                Your membership request has been received successfully.
+              </p>
+              <p style="margin:0 0 18px 0;font-size:18px;line-height:1.6;">
+                Current status: <strong>Pending superadmin approval</strong>.
+              </p>
+              <p style="margin:0;font-size:14px;line-height:1.6;color:#555;">
+                You will receive the next email after approval.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;background:#f7f7f8;color:#666;font-size:12px;">
+              &copy; 2026 Community Portal
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
 
     try:
-        sent = send_mail(
+        email = EmailMultiAlternatives(
             subject,
-            message,
+            text_message,
             settings.DEFAULT_FROM_EMAIL,
             [member.email_id],
+            reply_to=[settings.REPLY_TO_EMAIL],
+        )
+        email.attach_alternative(html_message, "text/html")
+        sent = email.send(
             fail_silently=False,
         )
         if sent > 0:
@@ -503,6 +608,81 @@ def city_list_api(request):
         for city in qs.order_by("name")
     ]
     return JsonResponse({"results": data, "count": len(data)})
+
+
+@require_GET
+def location_relation_api(request):
+    country_id = _safe_int(request.GET.get("country_id"))
+    state_id = _safe_int(request.GET.get("state_id"))
+
+    state_obj = None
+    if state_id:
+        state_obj = State.objects.select_related("country").filter(id=state_id).first()
+        if not state_obj:
+            return JsonResponse({"detail": "state_id not found"}, status=404)
+
+    if state_obj and country_id and state_obj.country_id != country_id:
+        return JsonResponse({"detail": "state_id does not belong to country_id"}, status=400)
+
+    country_qs = Country.objects.all()
+    if country_id:
+        country_qs = country_qs.filter(id=country_id)
+        if not country_qs.exists():
+            return JsonResponse({"detail": "country_id not found"}, status=404)
+    if state_obj:
+        country_qs = country_qs.filter(id=state_obj.country_id)
+
+    countries = list(country_qs.order_by("name").values("id", "name"))
+    if not countries:
+        return JsonResponse({"results": [], "count": 0})
+
+    country_ids = [item["id"] for item in countries]
+    state_qs = State.objects.filter(country_id__in=country_ids)
+    if state_obj:
+        state_qs = state_qs.filter(id=state_obj.id)
+    states = list(
+        state_qs
+        .order_by("name")
+        .values("id", "name", "country_id")
+    )
+    city_qs = City.objects.filter(country_id__in=country_ids)
+    if state_obj:
+        city_qs = city_qs.filter(state_id=state_obj.id)
+    cities = list(
+        city_qs
+        .order_by("name")
+        .values("id", "name", "country_id", "state_id")
+    )
+
+    states_by_country = {}
+    for st in states:
+        states_by_country.setdefault(st["country_id"], []).append(
+            {"id": st["id"], "name": st["name"], "cities": []}
+        )
+
+    cities_without_state_by_country = {}
+    for city in cities:
+        city_data = {"id": city["id"], "name": city["name"]}
+        if city["state_id"]:
+            for st in states_by_country.get(city["country_id"], []):
+                if st["id"] == city["state_id"]:
+                    st["cities"].append(city_data)
+                    break
+        else:
+            cities_without_state_by_country.setdefault(city["country_id"], []).append(city_data)
+
+    results = []
+    for c in countries:
+        results.append(
+            {
+                "id": c["id"],
+                "name": c["name"],
+                "states": states_by_country.get(c["id"], []),
+                "cities_without_state": cities_without_state_by_country.get(c["id"], []),
+            }
+        )
+
+    return JsonResponse({"results": results, "count": len(results)})
 
 
 def member_detail_add(request):

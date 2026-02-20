@@ -21,6 +21,7 @@ urlpatterns = [
     path("api/master/countries/", views.country_list_api, name="country_list_api"),
     path("api/master/states/", views.state_list_api, name="state_list_api"),
     path("api/master/cities/", views.city_list_api, name="city_list_api"),
+    path("api/master/locations/", views.location_relation_api, name="location_relation_api"),
 
     path("members/create/", views.member_create_page, name="member_create_page"),
     path("edit/", views.member_edit, name="member_edit"),
