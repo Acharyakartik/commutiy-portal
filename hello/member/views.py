@@ -357,6 +357,13 @@ def dashboard(request):
     }
 
     return render(request, "html_member/dashboard.html", context)
+def member_detail(request):
+    member = get_logged_in_member(request)
+    if not member:
+        return redirect("member:customer_login")
+    return render(request, "html_member/member_detail.html", {"member": member})
+
+
 
 
 def member_create_page(request):
@@ -896,23 +903,5 @@ def memberjson(request):
 def logout_view(request):
     request.session.flush()
     return render(request, "html_member/login.html")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

@@ -5,6 +5,29 @@ from .models import City, Country, Member, MemberDetail, State
 
 
 class MemberForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["country"].queryset = Country.objects.all().order_by("name")
+        self.fields["state"].queryset = State.objects.none()
+        self.fields["city"].queryset = City.objects.none()
+
+        country_id = self.data.get("country")
+        state_id = self.data.get("state")
+
+        if not country_id and self.instance and self.instance.country_id:
+            country_id = self.instance.country_id
+        if not state_id and self.instance and self.instance.state_id:
+            state_id = self.instance.state_id
+
+        if country_id:
+            self.fields["state"].queryset = State.objects.filter(country_id=country_id).order_by("name")
+            self.fields["city"].queryset = City.objects.filter(country_id=country_id).order_by("name")
+
+        if state_id:
+            self.fields["city"].queryset = self.fields["city"].queryset.filter(
+                Q(state_id=state_id) | Q(state__isnull=True)
+            )
+
     class Meta:
         model = Member
         fields = [
@@ -43,6 +66,23 @@ class MemberForm(forms.ModelForm):
             "marital_status": forms.Select(attrs={"class": "form-control"}),
             "education": forms.TextInput(attrs={"class": "form-control"}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        country = cleaned_data.get("country")
+        state = cleaned_data.get("state")
+        city = cleaned_data.get("city")
+
+        if state and country and state.country_id != country.id:
+            self.add_error("state", "Selected state does not belong to selected country.")
+
+        if city and country and city.country_id != country.id:
+            self.add_error("city", "Selected city does not belong to selected country.")
+
+        if city and state and city.state_id and city.state_id != state.id:
+            self.add_error("city", "Selected city does not belong to selected state.")
+
+        return cleaned_data
 
 
 class MemberCreateForm(forms.ModelForm):

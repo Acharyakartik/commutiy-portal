@@ -12,6 +12,7 @@ urlpatterns = [
     path('member/', include('member.urls')),
     path('news/', include('news.urls')),
     path('', include('marketplace.urls')),
+    path('donation/', include('donation.urls')),
 
     path('api/public/profile/', member_views.public_profile_api),
     path('api/master/countries/', member_views.country_list_api),

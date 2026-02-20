@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'news',
     'home.apps.HomeConfig',
     'marketplace.apps.MarketplaceConfig',
+    'donation.apps.DonationConfig',
 ]
 
 

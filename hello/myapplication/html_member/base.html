@@ -108,25 +108,7 @@
             </li>
 
                 <!-- MEMBER -->
-                <li class="nav-item has-treeview {% block nav_member_menu %}{% endblock %}">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-user"></i>
-                        <p>
-                            Member
-                            <i class="right fas fa-angle-left"></i>
-                        </p>
-                    </a>
-
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="{% url 'member:member_edit' %}"
-                               class="nav-link {% block nav_edit_member %}{% endblock %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Edit Member</p>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
+              
 
                 <!-- MEMBER DETAIL -->
                 <li class="nav-item has-treeview {% block nav_detail_menu %}{% endblock %}">
@@ -147,6 +129,21 @@
                             </a>
                         </li>
                     </ul>
+                     <li class="nav-item">
+                            <a href="{% url 'member:member_detail' %}"
+                               class="nav-link {% block nav_member_detail %}{% endblock %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Member Detail</p>
+                            </a>
+                        </li>
+                </li>
+
+                <!-- DONATION -->
+                <li class="nav-item">
+                    <a href="{% url 'donation:donation_create' %}" class="nav-link {% block nav_donation %}{% endblock %}">
+                        <i class="nav-icon fas fa-receipt"></i>
+                        <p>Donation Voucher</p>
+                    </a>
                 </li>
 
                 <!-- MARKETPLACE MANAGEMENT -->

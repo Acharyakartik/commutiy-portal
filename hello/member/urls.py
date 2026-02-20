@@ -26,7 +26,9 @@ urlpatterns = [
     path("members/create/", views.member_create_page, name="member_create_page"),
     path("edit/", views.member_edit, name="member_edit"),
     path("member-detail/add/", views.member_detail_add, name="member_detail_add"),
+    path("member-detail/", views.member_detail, name="member_detail"),
     path("member-detail/<int:member_id>/edit/", views.member_detail_edit, name="member_detail_edit"),
     path("profile/", views.profile, name="profile"),
     path("memberjson/", views.memberjson, name="memberjson"),
 ]
+
